@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>IMDB Poster</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.2/css/bulma.min.css">
+</head>
+
+<body>
+    <section class="hero is-warning">
+        <div class="hero-body">
+            <h1 class="title">
+                IMDB Poster
+            </h1>
+            <p class="subtitle">
+                zero hassle poster downloader
+            </p>
+        </div>
+    </section>
+
+    <section class="column">
+        <p>Enter an IMDB movie URL or a title ID</p>
+        <div class="field has-addons">
+            <div class="control">
+                <input id="movie" class="input" type="text" placeholder="e.g. tt2293640">
+            </div>
+            <div class="control">
+                <button id="go" class="button is-link">Go!</button>
+            </div>
+        </div>
+        <div class="control">
+            <button id="clear" class="button is-danger">Clear</button>
+        </div>
+    </section>
+    <div class="block"></div>
+
+    <section class="column">
+        <progress id="progress" class="progress is-small is-primary is-half" max="100"
+            style="display:none">x%</progress>
+    </section>
+
+    <section class="column">
+        <figure class="image has-ratio">
+            <img id="poster" src="img/1x1.png">
+        </figure>
+    </section>
+
+    <script>
+        const url = new URL('http://localhost:8080/poster');
+
+        const elements = {
+            movie: document.getElementById('movie'),
+            poster: document.getElementById('poster'),
+            progress: document.getElementById('progress'),
+            submitter: document.getElementById('go')
+        }
+
+        elements.submitter.addEventListener('click', (e) => {
+            if (!('fetch' in window)) {
+                console.log('error: fetch api not found');
+                return;
+            }
+
+            const element = elements.movie;
+            let value = element.value.trim().toLowerCase();
+            if (value.length == 0) {
+                console.log('error: zero length title id');
+                return;
+            }
+
+            const data = JSON.stringify({
+                'movie': value,
+                'all': false,
+            });
+
+            const options = {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: data,
+            };
+
+            clearImage();
+            showProgress(true);
+
+            fetch(url, options)
+                .then(res => {
+                    if (res.status === 200) {
+                        return res.json()
+                    } else {
+                        return Promise.reject(`status: ${res.status}`);
+                    }
+                })
+                .then(jsonData => {
+                    showProgress(false);
+                    if ('error' in jsonData && jsonData['error'] !== null) {
+                        throw new Error(jsonData['error']);
+                    }
+                    if ('posters' in jsonData) {
+                        const posters = jsonData['posters'];
+                        if (posters.length > 0) {
+                            displayImage(posters[0]);
+                        }
+                    }
+                })
+                .catch(err => {
+                    showProgress(false);
+                    console.log(`error: ${err}`);
+                })
+        });
+
+        document.getElementById('clear').addEventListener('click', (e) => {
+            elements.movie.value = '';
+            clearImage();
+            showProgress(false);
+        });
+
+        movie.addEventListener('keyup', (e) => {
+            if (e.keyCode === 13) {
+                elements.submitter.click();
+                return false;
+            }
+        });
+
+        function clearImage() {
+            elements.poster.src = 'img/1x1.png';
+        }
+
+        function displayImage(url) {
+            elements.poster.src = url;
+        }
+
+        function showProgress(display) {
+            elements.progress.style = display === true ? 'display:block' : 'display:none';
+        }
+    </script>
+</body>
+
+</html>
